@@ -1,16 +1,18 @@
 import * as PIXI from "pixi.js";
-import { DesktopGameService, MobileGameService } from "./services/GameServices";
+import { GameManager } from "./managers/game-manager";
+import { Store } from "./store/store";
 
 export default class GameEngine {
   gameStatus = null;
-  gameData = null;
 
-  constructor(wrapperElement) {
+  constructor(wrapperElement, closeGamePageCallback) {
     this.wrapperElement = wrapperElement;
+    this.closeGamePageCallback = closeGamePageCallback;
+    this.store = new Store();
   }
 
-  init(data) {
-    this.gameData = data;
+  init(matchId) {
+    this.store.match.id = matchId;
     this.pixiStartup();
     this.gameStartup();
   }
@@ -24,16 +26,22 @@ export default class GameEngine {
   };
 
   gameStartup = () => {
-    let app = new PIXI.Application({ antialias: true });
+    let app = new PIXI.Application({
+      antialias: false,
+    });
     this.wrapperElement.appendChild(app.view);
+    let contexts;
     if (PIXI.isMobile.any) {
-      new MobileGameService(app, this);
+      contexts = {
+        loading: ["loadingLandscape", "loadingPortrait"],
+        game: ["gameLandscape", "gamePortrait"],
+      };
     } else {
-      new DesktopGameService(app, this);
+      contexts = {
+        loading: ["loadingLandscape"],
+        game: ["gameLandscape"],
+      };
     }
+    new GameManager(app, this, contexts);
   };
-
-  updateGameStatus(data) {
-    this.gameStatus = data;
-  }
 }

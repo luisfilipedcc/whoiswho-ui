@@ -1,62 +1,95 @@
 import * as PIXI from "pixi.js";
+import { GuessingCharacter, PlayerCharacter } from "./character";
 
-export class Card extends PIXI.Container {
-  constructor(board, character, placement = null) {
+class Card extends PIXI.Container {
+  constructor(wrapper, character) {
     super();
-    board.addChild(this);
+    wrapper.addChild(this);
     this.id = character.id;
-    this.board = board;
-    this.placement = placement;
-    const resourceName = "character" + character.id.toString();
-
-    PIXI.Loader.shared.load((loader, resources) => {
-      this.characterImage = new PIXI.Sprite(resources[resourceName].texture);
-      this.addChild(this.characterImage);
-      this.characterImage.scale.set(0.7, 0.7);
-      this.positionCard();
-    });
-  }
-
-  positionCard() {
-    this.position.set(
-      this.board.width / 2 - this.width / 2,
-      this.board.height + 20
-    );
+    this.wrapper = wrapper;
   }
 }
 
-export class PlayingCard extends Card {
-  constructor(board, character, placement, selectionCallback) {
-    super(board, character, placement);
+export class GuessingCard extends Card {
+  constructor(wrapper, character, placement, closed, selectionCallback) {
+    super(wrapper, character);
+
+    const style = wrapper.style;
+
+    this.blocked = false;
+    this.placement = placement;
     this.buttonMode = true;
-    this.interactive = true;
+    this.interactive = false;
     this.selected = false;
     this.selectionCallback = selectionCallback;
     this.on("mousedown", this.onButtonDown).on("touchstart", this.onButtonDown);
-    this.addSelectionMark();
+    this.on("mouseover", this.onMouseOver);
+    this.on("mouseout", this.onMouseOut);
+    this.width = style.arena.width / wrapper.columnsCount;
+    this.height = style.arena.height / wrapper.rowsCount;
+
+    this.character = new GuessingCharacter(this, character, false);
+
+    this.positionCard();
+
+    if (closed) {
+      this.pick();
+    }
   }
 
   positionCard() {
     this.position.set(
-      (this.characterImage.width + 20) * this.placement.column,
-      (this.characterImage.height + 20) * this.placement.row
+      this._width * this.placement.column,
+      this._height * this.placement.row
     );
-  }
-
-  addSelectionMark() {
-    this.overlay = new PIXI.Graphics();
-    this.overlay.lineStyle(3, 0xff0000, 1);
-    this.overlay.beginFill(0x555555, 0.6);
-    this.overlay.drawRect(0, 0, this.width, this.height);
-    this.overlay.endFill();
-    this.overlay.visible = false;
-    this.addChild(this.overlay);
   }
 
   onButtonDown() {
     this.selected = !this.selected;
-    this.overlay.visible = this.selected;
+    this.character.toggleSelected(this.selected);
     this.selectionCallback(this.id);
-    //this.characterImage.alpha = this.selected ? 0.4 : 1;
+  }
+
+  onMouseOver() {
+    this.character.mouseOver();
+  }
+
+  onMouseOut() {
+    this.character.mouseOut();
+  }
+
+  pick() {
+    this.blocked = true;
+    this.selected = false;
+    this.interactive = false;
+    this.character.togglePicked();
+  }
+}
+
+export class PlayerCard extends Card {
+  constructor(wrapper, style, character) {
+    super(wrapper, character);
+    this.character = new PlayerCharacter(this, character, true);
+    this.style = style;
+    this.width = style.width;
+    this.height = style.height;
+    this.positionCard();
+  }
+  positionCard() {
+    this.position.set(this.style.position.x, this.style.position.y);
+  }
+}
+
+export class OpponentCard extends Card {
+  constructor(wrapper, style, character) {
+    super(wrapper, character);
+    this.character = new PlayerCharacter(this, character, true);
+    this.style = style;
+    this.positionCard();
+    this.width = style.width;
+    this.height = style.height;
+  }
+  positionCard() {
+    this.position.set(this.style.position.x, this.style.position.y);
   }
 }
